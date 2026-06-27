@@ -1,0 +1,43 @@
+[workspace]
+members = [
+    "core",
+    # "gui/*",
+    # "gui/desktop",
+    "tui",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+authors = ["AltIsBacc"]
+
+[workspace.dependencies]
+oxidrive-core = { path = "core" }
+oxidrive-tui = { path = "tui" }
+
+# core
+cpal = { version = "0.18", features = ["realtime"] }
+rtrb = "0.3"
+triple_buffer = "9.0"
+
+# tui
+
+# gui
+
+# util
+anyhow = "1.0"
+log = "0.4"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.release]
+opt-level = 3
+
+[profile.release.package.oxidrive-core]
+opt-level = 3
+
+[profile.dev.package.oxidrive-core]
+opt-level = 3
+

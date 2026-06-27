@@ -1,0 +1,14 @@
+[package]
+name = "oxidrive-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+cpal.workspace = true
+rtrb.workspace = true
+triple_buffer.workspace = true
+
+anyhow.workspace = true
+log.workspace = true
+
