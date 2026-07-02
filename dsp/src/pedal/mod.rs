@@ -1,6 +1,9 @@
 
-pub trait AudioNode: Send {
-    fn prepare(&mut self, sample_rate: f32, max_buffer_size: usize);
+pub mod chain;
+pub mod commands;
+
+pub trait PedalNode: Send {
+    fn prepare(&mut self, sample_rate: u32, buffer_size: usize);
     fn process(&mut self, data: &mut [f32]);
 
     fn name(&self) -> &str;

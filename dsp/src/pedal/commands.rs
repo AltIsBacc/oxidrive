@@ -1,11 +1,11 @@
-use crate::node::AudioNode;
+use crate::pedal::PedalNode;
 
-pub enum ChainCommand {
+pub enum PedalChainCommand {
     // pedal management
-    AddPedal { index: usize, pedal: Box<dyn AudioNode> },
+    AddPedal { pedal: Box<dyn PedalNode> },
+    InsertPedal { index: usize, pedal: Box<dyn PedalNode> },
     RemovePedal { index: usize },
     SwapPedals { a: usize, b: usize },
-    MovePedal { from: usize, to: usize },
 
     // bypass
     SetBypass { index: usize, bypass: bool },
@@ -14,10 +14,10 @@ pub enum ChainCommand {
     UnbypassAll,
 
     // parameters
-    SetParam { index: usize, param: usize, value: f32 },
+    GetParamRef { index: usize, param: usize, value: f32 },
 
     // presets
-    LoadPreset { pedals: Vec<Box<dyn AudioNode>> },
+    LoadPreset { pedals: Vec<Box<dyn PedalNode>> },
     ClearChain,
 }
 

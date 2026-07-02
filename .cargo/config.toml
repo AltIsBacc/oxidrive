@@ -4,6 +4,6 @@ build-all = "build --workspace"
 build-tui = "build -p oxidrive-tui"
 run-tui = "run -p oxidrive-tui"
 
-build-android = "apk build -p oxidrive-gui-android --target aarch64-linux-android --lib"
-run-android = "apk run -p oxidrive-gui-android --target aarch64-linux-android --lib"
+build-android = "apk2 build -p oxidrive-gui-android --target aarch64-linux-android --lib"
+run-android = "apk2 run -p oxidrive-gui-android --target aarch64-linux-android --lib"
 

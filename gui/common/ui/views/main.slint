@@ -1,0 +1,70 @@
+import { Palette } from "std-widgets.slint";
+
+import { AppStrings } from "@root/strings.slint";
+
+import {
+	SmallAppBar, NavigationBar,
+	MaterialStyleMetrics, Icons
+} from "@material";
+
+import {
+	FragmentContainer
+} from "@fragment";
+
+import {
+	MainViewAdapter
+} from "@root/view_adapters.slint";
+
+import {
+	PedalsFragment, PresetsFragment, SettingsFragment
+} from "@root/fragments.slint";
+
+export component MainView {
+	VerticalLayout {
+		width: 100%;
+		height: 100%;
+
+		app_bar := SmallAppBar {
+        	vertical-stretch: 0;
+
+        	trailing_buttons: [
+        		{
+        			icon: Palette.color_scheme == ColorScheme.light ? Icons.check : Icons.menu,
+        			enabled: true,
+        		},
+        	];
+
+            title: AppStrings.data.app_name;
+        	show-background: true;
+
+			trailing_button_clicked(index) => {
+                if index == 0 {
+                    if Palette.color_scheme == ColorScheme.light {
+                        Palette.color_scheme = ColorScheme.dark;
+                        return;
+                    }
+
+                    Palette.color_scheme = ColorScheme.light;
+                }
+            }
+        }
+
+        FragmentContainer {
+			if MainViewAdapter.current_tab == 0 : PedalsFragment { }
+        	if MainViewAdapter.current_tab == 1 : PresetsFragment { } 
+        	if MainViewAdapter.current_tab == 2 : SettingsFragment { }
+        }
+
+        NavigationBar {
+        	vertical-stretch: 0;
+
+            items: [
+                { /* icon: @image-url("icons/home.svg"), */ text: AppStrings.data.mv_navbar_item_pedals },
+                { /* icon: @image-url("icons/settings.svg"), */ text: AppStrings.data.mv_navbar_item_presets },
+            ];
+
+			current_index <=> MainViewAdapter.current_tab;
+    	}    
+    }
+}
+

@@ -5,3 +5,11 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+oxidrive-core.workspace = true
+cpal = { workspace = true, features = ["pulseaudio"] }
+
+loglet.workspace = true
+
+anyhow.workspace = true
+log.workspace = true
+

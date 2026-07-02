@@ -1,0 +1,13 @@
+[package]
+name = "oxidrive-dsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+cpal.workspace = true
+rtrb.workspace = true
+
+anyhow.workspace = true
+log.workspace = true
+

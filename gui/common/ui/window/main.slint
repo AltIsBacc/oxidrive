@@ -1,0 +1,35 @@
+import {
+	MaterialWindow
+} from "@material";
+
+import {
+	MainWindowAdapter
+} from "@root/window/main_window_adapter.slint";
+
+import {
+	MainView
+} from "@root/views.slint";
+
+import "@fonts/Roboto-VariableFont.ttf";
+
+export component MainWindow inherits MaterialWindow {
+	preferred-width: 600px;
+    preferred-height: 400px;
+    default-font-family: "Roboto";
+
+    MainView {
+	    x: root.safe-area-insets.left;
+	    y: root.safe-area-insets.top;
+	    width: root.width - root.safe-area-insets.right - root.safe-area-insets.left;
+	    height: root.height - root.safe-area-insets.bottom - root.safe-area-insets.top;
+    }
+
+	changed width => {
+        MainWindowAdapter.width = root.width;
+    }
+
+    changed height => {
+        MainWindowAdapter.height = root.height;
+    }
+}
+

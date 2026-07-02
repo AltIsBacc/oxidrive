@@ -5,9 +5,11 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-cpal.workspace = true
-rtrb.workspace = true
-triple_buffer.workspace = true
+oxidrive-dsp.workspace = true
+
+biquad.workspace = true
+hound.workspace = true
+rustfft.workspace = true
 
 anyhow.workspace = true
 log.workspace = true

@@ -1,45 +1,28 @@
+use std::sync::{LazyLock, Mutex};
+
 use anyhow::Context;
 
-use crate::{chain::{PedalChain, PedalChainHandle}, engine::{AudioCallback, AudioDeviceInfo, AudioEngine}};
+pub use oxidrive_dsp;
+use oxidrive_dsp::OxidriveDSP;
 
-pub mod engine;
-pub mod chain;
-pub mod commands;
-pub mod node;
+pub mod pedals;
+pub mod util;
 
-pub struct OxidriveDSP {
-    pub audio_engine: AudioEngine,
-    pub pedals: PedalChainHandle,
-}
+static DSP: LazyLock<Mutex<OxidriveDSP>> = LazyLock::new(|| {
+    Mutex::new(OxidriveDSP::with_defaults()
+        .context("failed to create dsp")
+        .unwrap()
+    )
+});
 
-impl OxidriveDSP {
-    pub fn new(input: AudioDeviceInfo, output: AudioDeviceInfo) -> Result<Self> {
-        let (chain, handle) = PedalChain::new();
-        let audio_engine = AudioEngine::new(input, output)?;
-
-        audio_engine.register_callback(chain);
-
-        Ok(Self {
-            audio_engine,
-            pedals: handle,
-        })
-    }
-
-    pub fn with_defaults() -> Result<Self> {
-        let (chain, handle) = PedalChain::new();
-        let audio_engine = AudioEngine::with_defaults()?;
-
-        Ok(Self {
-            audio_engine,
-            pedals: handle,
-        })
-    }
-
-    pub fn init(&mut self) -> Result<()> {
-        self.audio_engine.build_streams()?;
-        self.audio_engine.play()?;
-
-        Ok(())
+pub fn with_dsp<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut OxidriveDSP) -> R,
+{
+    if let Ok(mut guard) = DSP.lock() {
+        Some(f(&mut *guard))
+    } else {
+        None
     }
 }
 

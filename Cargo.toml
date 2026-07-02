@@ -1,8 +1,9 @@
 [workspace]
 members = [
+	"dsp",
     "core",
-    # "gui/*",
-    # "gui/desktop",
+    "gui/common",
+    "gui/android",
     "tui",
 ]
 resolver = "3"
@@ -13,31 +14,63 @@ edition = "2024"
 authors = ["AltIsBacc"]
 
 [workspace.dependencies]
+oxidrive-dsp = { path = "dsp" }
 oxidrive-core = { path = "core" }
+
 oxidrive-tui = { path = "tui" }
 
-# core
+oxidrive-gui-common = { path = "gui/common" }
+oxidrive-gui-android = { path = "gui/android" }
+
+# dsp
 cpal = { version = "0.18", features = ["realtime"] }
 rtrb = "0.3"
 triple_buffer = "9.0"
 
+# core
+biquad = "0.6"
+hound = "3.5"
+rustfft = "6.4"
+
 # tui
+loglet = "0.0.2"
 
-# gui
+# shared gui
+slint = { version = "1.17", default-features = false, features = ["compat-1-2", "renderer-skia", "serde"] }
+i-slint-compiler = { version = "=1.17", default-features = false, features = ["rust", "display-diagnostics", "bundle-translations"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+sysdirs = { version = "0.9" }
+jni = { version = "0.22" }
 
-# util
+# shared gui build
+futures = { version = "0.3", default-features = false, features = ["executor"] }
+derive_more = { version = "2.1", default-features = false, features = ["error", "display"] }
+
+# android gui
+android-activity = { version = "0.6" }
+android_logger = { version = "0.15" }
+
+# shared
 anyhow = "1.0"
 log = "0.4"
 
 [profile.dev]
 debug = "line-tables-only"
 
+[profile.dev.package."*"]
+debug = false
+
+[profile.dev.package.oxidrive-core]
+opt-level = 3
+
+[profile.debugging]
+inherits = "dev"
+debug = true
+
 [profile.release]
 opt-level = 3
 
 [profile.release.package.oxidrive-core]
-opt-level = 3
-
-[profile.dev.package.oxidrive-core]
 opt-level = 3
 

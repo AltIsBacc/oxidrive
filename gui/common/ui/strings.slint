@@ -1,0 +1,13 @@
+@rust-attr(derive(serde::Serialize, serde::Deserialize))
+@rust-attr(serde(default))
+export struct LocalizationData {
+    app_name: string,
+    mv_navbar_item_pedals: string,
+    mv_navbar_item_presets: string,
+}
+
+export global AppStrings {
+	in property <string> lang_code;
+	in property <LocalizationData> data;
+}
+
