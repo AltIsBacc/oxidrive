@@ -1,14 +1,13 @@
-use oxidrive_dsp::pedal::PedalNode;
+use oxidrive_dsp::{engine::buffer::AudioBuffer, pedal::{PedalNode, TypedPedalNode}};
+use strum::FromRepr;
 
+#[derive(Clone, Copy, FromRepr)]
+#[repr(u32)]
 pub enum WaveshaperParam {
     InputGain = 0,
     Drive     = 1,
     Asymmetric = 2,
     OutputLevel = 3,
-}
-
-impl From<WaveshaperParam> for usize {
-    fn from(p: WaveshaperParam) -> usize { p as usize }
 }
 
 pub struct WaveshaperNode {
@@ -34,7 +33,7 @@ impl WaveshaperNode {
 impl PedalNode for WaveshaperNode {
     fn prepare(&mut self, _sample_rate: u32, _max_buffer_size: usize) {}
 
-    fn process(&mut self, data: &mut [f32]) {
+    fn process(&mut self, data: &AudioBuffer<'_, f32>) {
         if self.bypass { return; }
 
         let total_gain = self.input_gain * (1.0 + self.drive * 15.0);
@@ -68,7 +67,7 @@ impl PedalNode for WaveshaperNode {
     fn bypass(&self) -> bool { self.bypass }
 
     fn set_bypass(&mut self, bypass: bool) { self.bypass = bypass; }
-    fn set_param(&mut self, param: usize, value: f32) {
+    fn set_param_raw(&mut self, param: u32, value: f32) {
         match param {
             0 => self.input_gain = value,
             1 => self.drive = value.clamp(0.0, 1.0),

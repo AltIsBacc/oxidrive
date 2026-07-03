@@ -2,6 +2,8 @@ use anyhow::Result;
 use cpal::{BufferSize, Device, SizedSample, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig, traits::DeviceTrait};
 use rtrb::{Consumer, Producer};
 
+use crate::engine::{AudioCallback, buffer::AudioBuffer};
+
 #[derive(Clone, Copy)]
 pub struct ResolvedStreamConfig {
     pub buffer_size: u32,
@@ -65,7 +67,8 @@ impl AudioStream {
     pub fn new_output<T>(
         device: &Device,
         config: ResolvedStreamConfig,
-        mut src: Consumer<T>
+        mut src: Consumer<T>,
+        mut callback: impl AudioCallback<T>,
     ) -> Result<Self>
     where
         T: SizedSample + Send + 'static,
@@ -76,6 +79,8 @@ impl AudioStream {
                 if src.pop_entire_slice(d).is_err() {
                     d.fill(T::EQUILIBRIUM);
                 }
+
+                callback.process_frame(&AudioBuffer::wrap(d, config.channels));
             },
             |err| log::error!("error in output stream! {err}"),
             None

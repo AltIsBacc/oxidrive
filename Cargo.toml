@@ -25,12 +25,13 @@ oxidrive-gui-android = { path = "gui/android" }
 # dsp
 cpal = { version = "0.18", features = ["realtime"] }
 rtrb = "0.3"
-triple_buffer = "9.0"
+strided = "0.2"
 
 # core
 biquad = "0.6"
 hound = "3.5"
 rustfft = "6.4"
+strum = { version = "0.28", features = ["derive"] }
 
 # tui
 loglet = "0.0.2"

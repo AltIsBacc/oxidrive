@@ -3090,6 +3090,7 @@ dependencies = [
  "log",
  "oxidrive-dsp",
  "rustfft",
+ "strum",
 ]
 
 [[package]]
@@ -3100,6 +3101,7 @@ dependencies = [
  "cpal",
  "log",
  "rtrb",
+ "strided",
 ]
 
 [[package]]
@@ -3985,6 +3987,12 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 dependencies = [
  "float-cmp",
 ]
+
+[[package]]
+name = "strided"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3e96a77610a727267dec6f2afa4d8a0b22092bdc410515dd638124fa1b9bcc6"
 
 [[package]]
 name = "strum"

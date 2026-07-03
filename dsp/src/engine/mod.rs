@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
-use cpal::{Device, traits::{DeviceTrait, StreamTrait}};
+use cpal::{Device, SizedSample, traits::{DeviceTrait, StreamTrait}};
 use rtrb::RingBuffer;
 
-use crate::engine::streams::{AudioStream, ResolvedStreamConfig};
+use crate::engine::{buffer::AudioBuffer, streams::{AudioStream, ResolvedStreamConfig}};
 
 pub mod streams;
+pub mod buffer;
 
 pub struct AudioEngine {
     pub input: Device,
@@ -24,19 +25,25 @@ impl AudioEngine {
         })
     }
 
-    pub fn build_streams(&mut self, mut callback: impl AudioCallback) -> Result<()> {
+    pub fn build_streams<T>(
+        &mut self, mut callback: impl AudioCallback<T>
+    ) -> Result<()>
+    where
+        T: SizedSample + Send + 'static
+    {
         let input_config: ResolvedStreamConfig = self.input.default_input_config()?.into();
         
         callback.prepare(input_config.sample_rate, input_config.buffer_size as usize);
 
-        let (producer, consumer) = RingBuffer::<f32>::new((input_config.buffer_size * 2) as usize);
-        let input = AudioStream::new_input::<f32>(
+        let (producer, consumer) = RingBuffer::<T>::new((input_config.buffer_size * 2) as usize);
+        let input = AudioStream::new_input::<T>(
             &self.input, input_config, producer
         )?;
 
         let output_config: ResolvedStreamConfig = self.output.default_output_config()?.into();
-        let output = AudioStream::new_output::<f32>(
-            &self.output, output_config, consumer
+        let output = AudioStream::new_output::<T>(
+            &self.output, output_config,
+            consumer, callback
         )?;
 
         self.input_stream = Some(input);
@@ -82,8 +89,11 @@ impl AudioEngine {
     }
 }
 
-pub trait AudioCallback: Send + 'static {
+pub trait AudioCallback<T>: Send + 'static
+where
+    T: SizedSample
+{
     fn prepare(&mut self, sample_rate: u32, buffer_size: usize);
-    fn process_frame(&mut self, data: &mut [f32]);
+    fn process_frame(&mut self, data: &AudioBuffer<'_, T>);
 }
 

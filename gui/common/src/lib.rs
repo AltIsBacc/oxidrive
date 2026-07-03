@@ -1,5 +1,5 @@
 use anyhow::Result;
-use oxidrive_core::{oxidrive_dsp::pedal::PedalNode, pedals::amp::{AmpNode, AmpParam}, util::ir::load_ir};
+use oxidrive_core::{oxidrive_dsp::pedal::{PedalNode, TypedPedalNode}, pedals::{amp::{AmpNode, AmpParam}, waveshaper::{WaveshaperNode, WaveshaperParam}}, util::ir::load_ir};
 use slint::{ComponentHandle, Global};
 
 pub use oxidrive_core;
@@ -40,7 +40,7 @@ pub fn run() -> Result<()> {
             )
             .unwrap_or_default();
 
-        let mut amp = AmpNode::new(ir);
+        /* let mut amp = AmpNode::new(ir);
 
         amp.set_param(AmpParam::InputGain.into(),      1.2);  // slight boost into the stage
         amp.set_param(AmpParam::Drive.into(),          0.9); // crunch, not full distortion
@@ -49,11 +49,14 @@ pub fn run() -> Result<()> {
         amp.set_param(AmpParam::Mid.into(),            3.0);  // mid push, classic British honk
         amp.set_param(AmpParam::Treble.into(),         1.5);  // just enough air
         amp.set_param(AmpParam::OutputLevel.into(),    0.8);  // pull back so it's not clipping output
-        amp.set_param(AmpParam::CabinetEnabled.into(), 1.0);
+        amp.set_param(AmpParam::CabinetEnabled.into(), 1.0); */
 
-        dsp.pedals.add_pedal(0, Box::new(
-            amp
-        ));
+
+        let mut waveshaper = WaveshaperNode::new();
+
+        waveshaper.set_param(WaveshaperParam::InputGain, 1.5f);
+
+        dsp.pedals.add_pedal(Box::new(waveshaper));
     });
 
     window.run()?;
