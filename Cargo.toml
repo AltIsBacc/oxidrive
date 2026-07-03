@@ -31,7 +31,7 @@ strided = "0.2"
 biquad = "0.6"
 hound = "3.5"
 rustfft = "6.4"
-strum = { version = "0.28", features = ["derive"] }
+num_enum = "0.7"
 
 # tui
 loglet = "0.0.2"

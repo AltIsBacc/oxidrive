@@ -1,5 +1,5 @@
 use anyhow::Result;
-use oxidrive_core::{oxidrive_dsp::pedal::{PedalNode, TypedPedalNode}, pedals::{amp::{AmpNode, AmpParam}, waveshaper::{WaveshaperNode, WaveshaperParam}}, util::ir::load_ir};
+use oxidrive_core::{oxidrive_dsp::pedal::{TypedPedalNode}, pedals::waveshaper::{WaveshaperNode, WaveshaperParam}, util::ir::load_ir};
 use slint::{ComponentHandle, Global};
 
 pub use oxidrive_core;
@@ -53,10 +53,12 @@ pub fn run() -> Result<()> {
 
 
         let mut waveshaper = WaveshaperNode::new();
+        waveshaper.set_param(WaveshaperParam::InputGain, 0.3);
+        waveshaper.set_param(WaveshaperParam::Asymmetric, 1.0);
 
-        waveshaper.set_param(WaveshaperParam::InputGain, 1.5f);
-
-        dsp.pedals.add_pedal(Box::new(waveshaper));
+        if let Err(e) = dsp.pedals.add_pedal(Box::new(waveshaper)) {
+            log::error!("yo? {e}");
+        }
     });
 
     window.run()?;

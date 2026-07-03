@@ -94,6 +94,6 @@ where
     T: SizedSample
 {
     fn prepare(&mut self, sample_rate: u32, buffer_size: usize);
-    fn process_frame(&mut self, data: &AudioBuffer<'_, T>);
+    fn process_frame(&mut self, data: &mut AudioBuffer<'_, T>);
 }
 

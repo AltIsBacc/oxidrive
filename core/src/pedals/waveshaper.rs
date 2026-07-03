@@ -1,7 +1,7 @@
-use oxidrive_dsp::{engine::buffer::AudioBuffer, pedal::{PedalNode, TypedPedalNode}};
-use strum::FromRepr;
+use num_enum::IntoPrimitive;
+use oxidrive_dsp::{engine::buffer::AudioBuffer, pedal::PedalNode};
 
-#[derive(Clone, Copy, FromRepr)]
+#[derive(Clone, Copy, IntoPrimitive)]
 #[repr(u32)]
 pub enum WaveshaperParam {
     InputGain = 0,
@@ -33,14 +33,16 @@ impl WaveshaperNode {
 impl PedalNode for WaveshaperNode {
     fn prepare(&mut self, _sample_rate: u32, _max_buffer_size: usize) {}
 
-    fn process(&mut self, data: &AudioBuffer<'_, f32>) {
+    fn process(&mut self, data: &mut AudioBuffer<'_, f32>) {
         if self.bypass { return; }
+
+        let interleaved_data = data.interleaved();
 
         let total_gain = self.input_gain * (1.0 + self.drive * 15.0);
         let output_level = self.output_level;
 
         if self.asymmetric {
-            for sample in data.iter_mut() {
+            for sample in interleaved_data.iter_mut() {
                 let driven = *sample * total_gain;
                 
                 // Determine if sample is negative (true = 1.0, false = 0.0)
@@ -56,7 +58,7 @@ impl PedalNode for WaveshaperNode {
                 *sample = shaped * output_level;
             }
         } else {
-            for sample in data.iter_mut() {
+            for sample in interleaved_data.iter_mut() {
                 let driven = *sample * total_gain;
                 *sample = driven.tanh() * output_level;
             }

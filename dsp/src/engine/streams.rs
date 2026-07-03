@@ -80,7 +80,8 @@ impl AudioStream {
                     d.fill(T::EQUILIBRIUM);
                 }
 
-                callback.process_frame(&AudioBuffer::wrap(d, config.channels));
+                let mut wrapped = AudioBuffer::wrap(d, config.channels);
+                callback.process_frame(&mut wrapped);
             },
             |err| log::error!("error in output stream! {err}"),
             None

@@ -3088,9 +3088,9 @@ dependencies = [
  "biquad",
  "hound",
  "log",
+ "num_enum",
  "oxidrive-dsp",
  "rustfft",
- "strum",
 ]
 
 [[package]]

@@ -53,7 +53,7 @@ impl AudioCallback<f32> for PedalChain {
         }
     }
 
-    fn process_frame(&mut self, data: &AudioBuffer<'_, f32>) {
+    fn process_frame(&mut self, data: &mut AudioBuffer<'_, f32>) {
         self.consume_commands();
         
         for node in &mut self.nodes {

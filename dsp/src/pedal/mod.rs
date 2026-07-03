@@ -4,7 +4,7 @@ pub mod chain;
 
 pub trait PedalNode: Send {
     fn prepare(&mut self, sample_rate: u32, buffer_size: usize);
-    fn process(&mut self, data: &AudioBuffer<'_, f32>);
+    fn process(&mut self, data: &mut AudioBuffer<'_, f32>);
 
     fn name(&self) -> &str;
     fn bypass(&self) -> bool;

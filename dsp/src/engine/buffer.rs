@@ -40,6 +40,10 @@ where
         self.frames
     }
 
+    pub fn interleaved(&mut self) -> &mut [T] {
+        self.interleaved
+    }
+
     pub fn to_planar(&mut self) -> PlanarAudioBuffer<T>
     where
         T: Default,
