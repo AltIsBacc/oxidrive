@@ -33,7 +33,7 @@ impl AudioEngine {
     {
         let input_config: ResolvedStreamConfig = self.input.default_input_config()?.into();
         
-        callback.prepare(input_config.sample_rate, input_config.buffer_size as usize);
+        callback.prepare(input_config);
 
         let (producer, consumer) = RingBuffer::<T>::new((input_config.buffer_size * 2) as usize);
         let input = AudioStream::new_input::<T>(
@@ -93,7 +93,7 @@ pub trait AudioCallback<T>: Send + 'static
 where
     T: SizedSample
 {
-    fn prepare(&mut self, sample_rate: u32, buffer_size: usize);
+    fn prepare(&mut self, input_config: ResolvedStreamConfig);
     fn process_frame(&mut self, data: &mut AudioBuffer<'_, T>);
 }
 

@@ -7,6 +7,8 @@ use crate::{engine::AudioEngine, pedal::chain::{PedalChain, PedalController}};
 
 pub mod engine;
 pub mod pedal;
+pub mod util;
+pub mod traits;
 
 pub struct OxidriveDSP {
     pub engine: AudioEngine,

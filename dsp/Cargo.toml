@@ -12,3 +12,5 @@ strided.workspace = true
 anyhow.workspace = true
 log.workspace = true
 
+pastey.workspace = true
+

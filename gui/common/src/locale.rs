@@ -25,9 +25,10 @@ pub trait WithDefaults {
 impl WithDefaults for window::LocalizationData {
     fn with_defaults() -> Self {
         Self {
-            app_name: "Oxidrive ".into(),
+            app_name: "Oxidrive (ilovegozo)".into(),
             mv_navbar_item_pedals: "Pedals".into(),
             mv_navbar_item_presets: "Presets".into(),
+            mv_navbar_item_plugins: "Plugins".into(),
         }
     }
 }

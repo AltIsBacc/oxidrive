@@ -1,63 +1,73 @@
 use anyhow::Result;
-use rtrb::{Consumer, Producer, RingBuffer};
 
-use crate::{engine::{AudioCallback, buffer::AudioBuffer}, pedal::{BoxedPedal, PedalNode}};
+use crate::{engine::{AudioCallback, buffer::AudioBuffer, streams::ResolvedStreamConfig}, pedal::{BoxedPedal, commands::{ChainCommand, ChainUpdate}}, util::bi_channel::{self, BiDirectionalChannel}};
 
-type ChainCommand = Box<dyn FnOnce(&mut Vec<BoxedPedal>) + Send>;
-
-pub struct PedalController(Producer<ChainCommand>);
+pub struct PedalController(BiDirectionalChannel<ChainCommand, ChainUpdate>);
 
 impl PedalController {
-    pub fn new(commands: Producer<ChainCommand>) -> Self {
-        Self(commands)
+    pub fn send_command(&mut self, cmd: ChainCommand) -> Result<()> {
+        self.0.send(cmd)
     }
 
-    pub fn queue_command(&mut self, cmd: ChainCommand) -> Result<()> {
-       self.0.push(cmd).map_err(|_| anyhow::anyhow!("chain command queue full!"))
-    }
-
-    pub fn add_pedal(&mut self, node: BoxedPedal) -> Result<()> {
-        self.queue_command(Box::new(move |nodes| nodes.push(node)))
+    pub fn pop_update(&mut self) -> Option<ChainUpdate> {
+        self.0.recv().ok()
     }
 }
 
 pub struct PedalChain {
     nodes: Vec<BoxedPedal>,
-    commands: Consumer<ChainCommand>,
+    channel: BiDirectionalChannel<ChainUpdate, ChainCommand>,
+    input_config: Option<ResolvedStreamConfig>,
+
+    is_ready: bool,
 }
 
 impl PedalChain {
     pub fn new() -> (Self, PedalController) {
-        let (producer, consumer) = RingBuffer::new(
-            64
-        );
+        let (
+            ui_side,
+            audio_side
+        ) = bi_channel::create_bi_channel(256);
 
         (Self {
             nodes: Vec::with_capacity(10),
-            commands: consumer,
-        }, PedalController::new(producer))
+            channel: audio_side,
+            input_config: None,
+            is_ready: false
+        }, PedalController(ui_side))
     }
 
-    fn consume_commands(&mut self) {
-        while let Ok(cmd) = self.commands.pop() { 
-            cmd(&mut self.nodes);
+    fn handle_command(&mut self, command: ChainCommand) {
+        match command {
+            ChainCommand::AddPedal(mut pedal) => {
+                // SAFETY: input_config is not null at this point
+                pedal.prepare(unsafe {
+                    self.input_config.as_ref().unwrap_unchecked()
+                });
+                self.nodes.push(pedal);
+            }
         }
     }
 }
 
 impl AudioCallback<f32> for PedalChain {
-    fn prepare(&mut self, sample_rate: u32, buffer_size: usize) {
-        for node in &mut self.nodes {
-            log::info!("pedalnode::prepare for {}", node.name());
-            node.prepare(sample_rate, buffer_size);
-        }
+    fn prepare(&mut self, input_config: ResolvedStreamConfig) {
+        self.input_config = Some(input_config);
+
+        self.is_ready = true;
+        _ = self.channel.send(ChainUpdate::PedalReady);
     }
 
     fn process_frame(&mut self, data: &mut AudioBuffer<'_, f32>) {
-        self.consume_commands();
+        if !self.is_ready { return; }
+
+        while let Ok(cmd) = self.channel.recv() {
+            self.handle_command(cmd);
+            _ = self.channel.send(ChainUpdate::CommandAcknowledged);
+        }
         
         for node in &mut self.nodes {
-            if !node.bypass() { node.process(data); }
+            if !node.should_process() { node.process(data); }
         }
     }
 }

@@ -1,7 +1,7 @@
 mod compile;
 
 fn main() {
-    println!("Compiling Main UI");
+    println!("cargo:rerun-if-changed=ui");
 
     let config = compile::CompilerConfigurationBuilder::default()
         .with_style("material")
@@ -23,7 +23,5 @@ fn main() {
     compile::compile_with_config(
         "ui/main.slint", config.build()
     ).expect("Failed to compile ui/main.slint");
-
-    println!("Done compiling!");
 }
 

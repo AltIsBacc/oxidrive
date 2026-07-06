@@ -55,6 +55,7 @@ android_logger = { version = "0.15" }
 # shared
 anyhow = "1.0"
 log = "0.4"
+pastey = "0.2"
 
 [profile.dev]
 debug = "line-tables-only"

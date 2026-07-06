@@ -1,81 +1,86 @@
-use num_enum::IntoPrimitive;
-use oxidrive_dsp::{engine::buffer::AudioBuffer, pedal::PedalNode};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use oxidrive_dsp::{engine::{buffer::AudioBuffer, streams::ResolvedStreamConfig}, pedal::{NodeControls, NodeControlsBase, PedalNode}, traits::normalized::Normalized};
 
-#[derive(Clone, Copy, IntoPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u32)]
 pub enum WaveshaperParam {
-    InputGain = 0,
-    Drive     = 1,
-    Asymmetric = 2,
-    OutputLevel = 3,
+    Drive = 0,
+    Asymmetric = 1,
+}
+
+pub struct WaveshaperParams {
+    pub drive: f32,
+    pub asymmetric: bool,
+}
+
+impl WaveshaperParams {
+    pub fn new() -> Self {
+        Self {
+            drive: 0.5,
+            asymmetric: false,
+        }
+    }
 }
 
 pub struct WaveshaperNode {
-    bypass: bool,
-    input_gain: f32,
-    drive: f32,
-    asymmetric: bool,
-    output_level: f32,
+    controls: NodeControlsBase,
+    params: WaveshaperParams,
 }
 
 impl WaveshaperNode {
     pub fn new() -> Self {
         Self {
-            bypass: false,
-            input_gain: 1.0,
-            drive: 0.5,
-            asymmetric: false,
-            output_level: 1.0,
+            controls: NodeControlsBase::default(),
+            params: WaveshaperParams::new(),
         }
     }
 }
 
+impl NodeControls for WaveshaperNode {
+    fn controls(&self) ->  &NodeControlsBase { &self.controls }
+    fn controls_mut(&mut self) ->  &mut NodeControlsBase { &mut self.controls }
+}
+
 impl PedalNode for WaveshaperNode {
-    fn prepare(&mut self, _sample_rate: u32, _max_buffer_size: usize) {}
+    fn prepare(&mut self, _config: &ResolvedStreamConfig) { }
 
     fn process(&mut self, data: &mut AudioBuffer<'_, f32>) {
-        if self.bypass { return; }
+        if self.params.drive == 0.0 { return; }
 
         let interleaved_data = data.interleaved();
 
-        let total_gain = self.input_gain * (1.0 + self.drive * 15.0);
-        let output_level = self.output_level;
-
-        if self.asymmetric {
+        let output_gain = self.controls.output_gain();
+        let k = self.params.drive * 15.0;
+    
+        if self.params.asymmetric {
             for sample in interleaved_data.iter_mut() {
-                let driven = *sample * total_gain;
-                
-                // Determine if sample is negative (true = 1.0, false = 0.0)
+                let driven = *sample;
                 let is_neg = (driven < 0.0) as i32 as f32;
                 
-                // Calculate both paths without conditional branching
-                let pos_val = driven.tanh();
-                let neg_val = (driven * 1.5).tanh() * 0.8;
+                // Positive cycle curve
+                let pos_val = (driven * (1.0 + k)) / (1.0 + k * driven.abs());
+                // Negative cycle curve (driven harder by multiplying k by 1.5)
+                let k_neg = k * 1.5;
+                let neg_val = ((driven * (1.0 + k_neg)) / (1.0 + k_neg * driven.abs())) * 0.8;
                 
-                // Blend results using the mask
                 let shaped = pos_val + is_neg * (neg_val - pos_val);
-                
-                *sample = shaped * output_level;
+                *sample = shaped * output_gain;
             }
         } else {
             for sample in interleaved_data.iter_mut() {
-                let driven = *sample * total_gain;
-                *sample = driven.tanh() * output_level;
+                let driven = *sample;
+                *sample = ((driven * (1.0 + k)) / (1.0 + k * driven.abs())) * output_gain;
             }
         }
     }
 
     fn name(&self) -> &str { "Waveshaper" }
-    fn bypass(&self) -> bool { self.bypass }
-
-    fn set_bypass(&mut self, bypass: bool) { self.bypass = bypass; }
     fn set_param_raw(&mut self, param: u32, value: f32) {
-        match param {
-            0 => self.input_gain = value,
-            1 => self.drive = value.clamp(0.0, 1.0),
-            2 => self.asymmetric = value > 0.5,
-            3 => self.output_level = value,
-            _ => {}
+        if let Ok(casted) = param.try_into() {
+            match casted {
+                WaveshaperParam::Drive => self.params.drive = value.clamp(0.0, 10.0),
+                WaveshaperParam::Asymmetric => self.params.asymmetric = value.to_bool(),
+            }
         }
     }
 }

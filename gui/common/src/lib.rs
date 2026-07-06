@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use anyhow::Result;
-use oxidrive_core::{oxidrive_dsp::pedal::{TypedPedalNode}, pedals::waveshaper::{WaveshaperNode, WaveshaperParam}, util::ir::load_ir};
-use slint::{ComponentHandle, Global};
+use oxidrive_core::{oxidrive_dsp::pedal::{PedalNodeExt,  commands::{ChainCommand, ChainUpdate}}, pedals::{silence::SilenceNode, waveshaper::{WaveshaperNode, WaveshaperParam}}, util::ir::load_ir};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 pub use oxidrive_core;
 
@@ -30,8 +32,24 @@ pub fn run() -> Result<()> {
         window::MaterialWindowAdapter::get(&w).set_disable_hover(true);
     });
 
+    let update = Timer::default();
+    update.start(
+        TimerMode::Repeated, Duration::from_millis(16),
+        move || {
+            oxidrive_core::with_dsp(|dsp| {
+                while let Some(upd) = dsp.pedals.pop_update() {
+                    match upd {
+                        ChainUpdate::FreeObject(obj) => drop(obj),
+                        ChainUpdate::PedalReady => log::info!("Pedal is ready!"),
+                        _ => { }
+                    }
+                }
+            });
+        }
+    );
+
     oxidrive_core::with_dsp(|dsp| {
-        let ir = platform.get_asset("cabir.wav")
+        let _ir = platform.get_asset("cabir.wav")
             .map_err(|e| log::warn!("Failed to load cabinet IR: {e}"))
             .ok()
             .and_then(|b| load_ir(b)
@@ -53,12 +71,12 @@ pub fn run() -> Result<()> {
 
 
         let mut waveshaper = WaveshaperNode::new();
-        waveshaper.set_param(WaveshaperParam::InputGain, 0.3);
         waveshaper.set_param(WaveshaperParam::Asymmetric, 1.0);
+        waveshaper.set_param(WaveshaperParam::Drive, 5.0);
 
-        if let Err(e) = dsp.pedals.add_pedal(Box::new(waveshaper)) {
-            log::error!("yo? {e}");
-        }
+        _ = dsp.pedals.send_command(
+            ChainCommand::AddPedal(Box::new(waveshaper))
+        );
     });
 
     window.run()?;
