@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
+use oxidrive_core::{oxidrive_dsp::pedal::{PedalNodeExt, commands::ChainCommand}, pedals::waveshaper::{WaveshaperNode, WaveshaperParam}};
 
 fn main() -> Result<()> {
     loglet::info!("Hello!");
@@ -7,8 +8,15 @@ fn main() -> Result<()> {
         loglet::info!("{:?}", host);
     }
 
-    let _ = oxidrive_core::with_dsp(|dsp| dsp.engine.play())
-        .context("failed to play dsp")?;
+    let _ = oxidrive_core::with_dsp(|dsp| {
+        let mut waveshaper = WaveshaperNode::new();
+        waveshaper.set_param(WaveshaperParam::Asymmetric, 1.0);
+        waveshaper.set_param(WaveshaperParam::Drive, 5.0);
+
+        _ = dsp.pedals.send_command(
+            ChainCommand::AddPedal(Box::new(waveshaper))
+        );
+    });
 
     Ok(())
 }

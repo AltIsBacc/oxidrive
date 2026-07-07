@@ -6,7 +6,7 @@ authors.workspace = true
 
 [dependencies]
 oxidrive-core.workspace = true
-cpal = { workspace = true, features = ["pulseaudio"] }
+cpal = { workspace = true, features = ["jack"] }
 
 loglet.workspace = true
 

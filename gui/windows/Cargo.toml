@@ -13,8 +13,8 @@ oxidrive-gui-common.workspace = true
 
 anyhow.workspace = true
 log.workspace = true
-env_logger.workspace = true
 
+env_logger.workspace = true
 rust-embed.workspace = true
 
 slint = { workspace = true, features = ["backend-winit"] }
