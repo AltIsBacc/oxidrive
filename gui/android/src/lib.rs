@@ -37,9 +37,7 @@ fn android_main(app: slint::android::AndroidApp) {
     );
 
     oxidrive_gui_common::platform::register(
-        platform::AndroidPlatform::new(
-            app.clone()
-        )
+        platform::AndroidPlatform { app: app.clone() }
     );
 
     android::init_with_event_listener(

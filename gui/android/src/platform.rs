@@ -8,12 +8,6 @@ pub struct AndroidPlatform {
     pub app: AndroidApp
 }
 
-impl AndroidPlatform {
-    pub fn new(app: AndroidApp) -> Self {
-        Self { app }
-    }
-}
-
 impl Platform for AndroidPlatform {
     fn get_dir(&self, dir_type: DirectoryType) -> Result<PathBuf> {
         match dir_type {

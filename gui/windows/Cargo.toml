@@ -1,0 +1,22 @@
+[package]
+name = "oxidrive-gui-windows"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "oxidrive"
+path = "src/main.rs"
+
+[dependencies]
+oxidrive-gui-common.workspace = true
+
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+
+rust-embed.workspace = true
+
+slint = { workspace = true, features = ["backend-winit"] }
+sysdirs.workspace = true
+

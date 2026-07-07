@@ -2,8 +2,7 @@
 members = [
 	"dsp",
     "core",
-    "gui/common",
-    "gui/android",
+    "gui/*",
     "tui",
 ]
 resolver = "3"
@@ -21,6 +20,7 @@ oxidrive-tui = { path = "tui" }
 
 oxidrive-gui-common = { path = "gui/common" }
 oxidrive-gui-android = { path = "gui/android" }
+oxidrive-gui-windows = { path = "gui/windows" }
 
 # dsp
 cpal = { version = "0.18", features = ["realtime"] }
@@ -40,22 +40,26 @@ loglet = "0.0.2"
 slint = { version = "1.17", default-features = false, features = ["compat-1-2", "renderer-skia", "serde"] }
 i-slint-compiler = { version = "=1.17", default-features = false, features = ["rust", "display-diagnostics", "bundle-translations"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0" }
-sysdirs = { version = "0.9" }
-jni = { version = "0.22" }
+serde_json = "1.0"
+sysdirs = "0.9"
+jni = "0.22"
 
 # shared gui build
 futures = { version = "0.3", default-features = false, features = ["executor"] }
 derive_more = { version = "2.1", default-features = false, features = ["error", "display"] }
 
 # android gui
-android-activity = { version = "0.6" }
-android_logger = { version = "0.15" }
+android-activity = "0.6"
+android_logger = "0.15"
+
+# windows gui
+rust-embed = "8.11"
 
 # shared
 anyhow = "1.0"
 log = "0.4"
 pastey = "0.2"
+env_logger = "0.11"
 
 [profile.dev]
 debug = "line-tables-only"
