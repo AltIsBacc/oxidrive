@@ -1,12 +1,12 @@
-use crate::engine::{buffer::AudioBuffer, streams::ResolvedStreamConfig};
+use crate::{engine::{buffer::AudioBuffer, streams::ResolvedStreamConfig}, traits::normalized::Normalized};
 
 pub mod chain;
 pub mod commands;
 
 macro_rules! generate_node_controls {
-    ($( 
-        $field:ident : $t:ty = $default:expr 
-        $( => $custom_logic:expr )? 
+    ($(
+        $field:ident : $t:ty = $default:expr
+        $( => $normalize:expr )?
     );* $(;)?) => {
         pub struct NodeControlsBase {
             $( $field: $t, )*
@@ -23,14 +23,16 @@ macro_rules! generate_node_controls {
         impl NodeControlsBase {
             pastey::paste! {
                 $(
-                    #[inline] 
-                    pub fn $field(&self) -> $t { 
-                        self.$field 
+                    #[inline]
+                    pub fn $field(&self) -> $t {
+                        self.$field
                     }
 
-                    #[inline] 
-                    pub fn [<set_ $field>](&mut self, val: $t) { 
-                        generate_node_controls!(@setter_body self, $field, val $(, $custom_logic)?);
+                    #[inline]
+                    pub fn [<set_ $field>](&mut self, val: $t) {
+                        #[allow(clippy::redundant_closure_call)]
+                        let val = generate_node_controls!(@apply val $(, $normalize)?);
+                        self.$field = val;
                     }
                 )*
             }
@@ -42,37 +44,31 @@ macro_rules! generate_node_controls {
 
             pastey::paste! {
                 $(
-                    #[inline] 
-                    fn $field(&self) -> $t { 
-                        self.controls().$field() 
+                    #[inline]
+                    fn $field(&self) -> $t {
+                        self.controls().$field()
                     }
 
-                    #[inline] 
-                    fn [<set_ $field>](&mut self, val: $t) { 
-                        self.controls_mut().[<set_ $field>](val) 
+                    #[inline]
+                    fn [<set_ $field>](&mut self, val: $t) {
+                        self.controls_mut().[<set_ $field>](val)
                     }
                 )*
             }
 
             #[inline]
             fn should_process(&self) -> bool {
-                !self.bypass() && self.output_gain() > 0.5 && self.mix() != 0.0
+                !self.bypass() && self.output_gain().to_bool() && self.mix() != 0.0
             }
         }
     };
 
-    (@setter_body $self:ident, $field:ident, $val:ident, $custom_logic:expr) => {
-        let custom_fn = $custom_logic;
-        $self.$field = custom_fn($val);
-    };
-
-    (@setter_body $self:ident, $field:ident, $val:ident) => {
-        $self.$field = $val;
-    };
+    (@apply $val:ident) => { $val };
+    (@apply $val:ident, $normalize:expr) => { ($normalize)($val) };
 }
 
 generate_node_controls! {
-    bypass:      bool = false;
+    bypass:      bool = 1.0.to_bool();
     input_gain:  f32  = 1.0 => |v: f32| v.max(0.0);
     mix:         f32  = 1.0 => |v: f32| v.clamp(0.0, 1.0);
     output_gain: f32  = 1.0 => |v: f32| v.clamp(0.0, 5.0);
