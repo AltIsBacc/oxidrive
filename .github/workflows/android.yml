@@ -33,10 +33,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install cargo-apk
+      - name: Install cargo-apk2
         run: |
-          if ! command -v cargo-apk &> /dev/null; then
-            cargo install cargo-apk
+          if ! command -v cargo-apk2 &> /dev/null; then
+            cargo install cargo-apk2
           fi
 
       - name: Build
