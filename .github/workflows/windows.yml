@@ -1,0 +1,26 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build-windows
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: oxidrive-windows
+          path: target/debug/oxidrive.exe
+
