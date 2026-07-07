@@ -7,6 +7,6 @@ run-tui = "run -p oxidrive-tui"
 build-windows = "build -p oxidrive-gui-windows"
 run-windows = "run -p oxidrive-gui-windows"
 
-build-android = "apk2 build -p oxidrive-gui-android --target aarch64-linux-android --lib"
-run-android = "apk2 run -p oxidrive-gui-android --target aarch64-linux-android --lib"
+build-android = "apk2 build -p oxidrive-gui-android --lib"
+run-android = "apk2 run -p oxidrive-gui-android --lib"
 

@@ -6,21 +6,38 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+        component:
+          - name: tui
+            command: build-tui
+            artifact: oxidrive-windows-tui
+          - name: gui
+            command: build-windows
+            artifact: oxidrive-windows-gui
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Cache cargo
+      - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}-${{ matrix.component.name }}
 
       - name: Build
-        run: cargo build-windows
+        run: cargo ${{ matrix.component.command }} --target ${{ matrix.target }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          name: oxidrive-windows
-          path: target/debug/oxidrive.exe
+          name: ${{ matrix.component.artifact }}-${{ matrix.target }}
+          path: target/${{ matrix.target }}/debug/oxidrive.exe
 
