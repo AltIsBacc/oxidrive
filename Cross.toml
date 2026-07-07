@@ -1,7 +1,4 @@
 [target.aarch64-unknown-linux-gnu]
-env.vars = [
-    "PKG_CONFIG_ALLOW_CROSS=1"
-]
 pre-build = [
   "dpkg --add-architecture $CROSS_DEB_ARCH",
   "apt-get update && apt-get install --assume-yes libasound2-dev:$CROSS_DEB_ARCH libjack-jackd2-dev:$CROSS_DEB_ARCH libjack-jackd2-0:$CROSS_DEB_ARCH"
