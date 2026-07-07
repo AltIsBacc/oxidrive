@@ -33,18 +33,17 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Android SDK/NDK
-        uses: android-actions/setup-android@v4
-
-      - name: Install apk2
-        run: cargo install cargo-apk2
+      - name: Install cargo-apk
+        run: |
+          if ! command -v cargo-apk &> /dev/null; then
+            cargo install cargo-apk
+          fi
 
       - name: Build
         run: cargo build-android --target ${{ matrix.target }}
-
+      
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: oxidrive-android-${{ matrix.target }}
           path: target/debug/apk/oxidrive.apk
-
