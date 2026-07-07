@@ -1,6 +1,11 @@
-[target.aarch64-unknown-linux-gnueabihf]
-dockerfile = "cross/linux/arm64.Dockerfile"
+[target.aarch64-unknown-linux-gnu]
+pre-build = [
+  "dpkg --add-architecture $CROSS_DEB_ARCH",
+  "apt-get update && apt-get install --assume-yes libasound2-dev:$CROSS_DEB_ARCH libjack-jackd2-dev:$CROSS_DEB_ARCH libjack-jackd2-0:$CROSS_DEB_ARCH"
+]
 
-[target.aarch64-unknown-linux-gnueabihf.env]
-passthrough = ["RUSTFLAGS"]
+[target.x86_64-unknown-linux-gnu]
+pre-build = [
+  "apt-get update && apt-get install --assume-yes libasound2-dev libjack-jackd2-dev libjack-jackd2-0"
+]
 
