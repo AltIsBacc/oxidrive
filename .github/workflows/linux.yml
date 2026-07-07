@@ -33,7 +33,7 @@ jobs:
           key: ${{ matrix.target }}-${{ matrix.component.name }}
 
       - name: Install Cross-rs
-        run: cargo install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build
         run: cross ${{ matrix.component.command }} --target ${{ matrix.target }}
