@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
+[[bin]]
+name = "oxidrive"
+path = "src/main.rs"
+
 [dependencies]
 oxidrive-core.workspace = true
 cpal = { workspace = true, features = ["jack"] }
