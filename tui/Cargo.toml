@@ -10,10 +10,15 @@ path = "src/main.rs"
 
 [dependencies]
 oxidrive-core.workspace = true
-cpal = { workspace = true, features = ["jack"] }
 
 loglet.workspace = true
 
 anyhow.workspace = true
 log.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = { workspace = true, features = ["jack"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+cpal = { workspace = true }
 
