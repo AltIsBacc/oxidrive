@@ -45,5 +45,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: oxidrive-android-${{ matrix.target }}
-          path: target/${{ matrix.target }}/debug/apk/oxidrive.apk
+          path: target/debug/apk/oxidrive.apk
 
