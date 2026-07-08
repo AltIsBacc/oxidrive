@@ -3,7 +3,6 @@ members = [
 	"dsp",
     "core",
     "gui/*",
-    "tui",
 ]
 resolver = "3"
 
@@ -16,8 +15,7 @@ authors = ["AltIsBacc"]
 oxidrive-dsp = { path = "dsp" }
 oxidrive-core = { path = "core" }
 
-oxidrive-tui = { path = "tui" }
-
+oxidrive-tui = { path = "gui/tui" }
 oxidrive-gui-common = { path = "gui/common" }
 oxidrive-gui-android = { path = "gui/android" }
 oxidrive-gui-windows = { path = "gui/windows" }

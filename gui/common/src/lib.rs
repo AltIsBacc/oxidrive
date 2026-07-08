@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use oxidrive_core::{oxidrive_dsp::pedal::{PedalNodeExt,  commands::{ChainCommand, ChainUpdate}}, pedals::{silence::SilenceNode, waveshaper::{WaveshaperNode, WaveshaperParam}}, util::ir::load_ir};
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
@@ -17,7 +17,7 @@ pub fn run() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("No platform registered!"))?;
 
     let window = window::WindowWrapper::from(
-        window::MainWindow::new().map_err(Into::<anyhow::Error>::into)?
+        window::MainWindow::new().map_err(Into::<Error>::into)?
     );
 
     prefs::init();
