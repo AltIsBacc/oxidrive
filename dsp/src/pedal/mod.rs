@@ -2,6 +2,7 @@ use crate::{engine::{buffer::AudioBuffer, streams::ResolvedStreamConfig}, traits
 
 pub mod chain;
 pub mod commands;
+pub mod graph;
 
 macro_rules! generate_node_controls {
     ($(
