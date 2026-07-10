@@ -1,0 +1,518 @@
+From 2cae6f75c6880e6909d9ec1c09d17d1a160916bf Mon Sep 17 00:00:00 2001
+From: AltIsBacc <117834511+AltIsBacc@users.noreply.github.com>
+Date: Fri, 10 Jul 2026 05:59:49 +0000
+Subject: [PATCH v1 2/2] gui: pannable node-graph canvas for wiring pedals
+
+Replace the fixed linear pedal strip (PedalArea) with GraphCanvas: a
+pannable Rectangle where dropped pedal instances render as draggable
+boxes with an input port (left) and output port (right), connected by
+bezier wires. Dragging out of an output port and releasing over another
+node's input port fires wire_completed(from_id, to_id); dragging the
+canvas background pans it; right-clicking/right-pressing a node removes
+it.
+
+New GraphCanvasAdapter (view_adapters/graph_canvas.slint) exposes
+nodes/wires as models plus pan_x/pan_y, and callbacks: node_dropped,
+node_moved, node_removed, wire_completed, wire_removed. Nothing on the
+Rust side is wired up to these yet, as requested - PedalArea and
+PedalsAdapter.active_chain are left in place, just unused by the
+fragment now, so nothing existing breaks.
+
+Also extends Pedal (the picker tile) with drag_ended(type_id, x, y) so
+a drop position can eventually be reported, and wires the pedal-picker
+row into GraphCanvasAdapter.node_dropped with a cascading placeholder
+position - Slint has no cross-component pointer tracking, so getting a
+real canvas-space drop position out of the picker row needs a shared
+ancestor tracking absolute pointer position across both; that's flagged
+inline as a follow-up rather than faked.
+---
+ gui/common/ui/components.slint                |   2 +
+ gui/common/ui/components/graph_canvas.slint   | 320 ++++++++++++++++++
+ gui/common/ui/components/pedals.slint         |  15 +
+ gui/common/ui/fragments/pedals.slint          |  30 +-
+ gui/common/ui/view_adapters.slint             |   2 +
+ .../ui/view_adapters/graph_canvas.slint       |  38 +++
+ 6 files changed, 399 insertions(+), 8 deletions(-)
+ create mode 100644 gui/common/ui/components/graph_canvas.slint
+ create mode 100644 gui/common/ui/view_adapters/graph_canvas.slint
+
+diff --git a/gui/common/ui/components.slint b/gui/common/ui/components.slint
+index 59d4687..e2d122e 100644
+--- a/gui/common/ui/components.slint
++++ b/gui/common/ui/components.slint
+@@ -1,3 +1,5 @@
+ 
+ export { Pedal, PedalArea } from "./components/pedals.slint";
+ 
++export { GraphCanvas, GraphMetrics } from "./components/graph_canvas.slint";
++
+diff --git a/gui/common/ui/components/graph_canvas.slint b/gui/common/ui/components/graph_canvas.slint
+new file mode 100644
+index 0000000..b2ed4cd
+--- /dev/null
++++ b/gui/common/ui/components/graph_canvas.slint
+@@ -0,0 +1,320 @@
++import { Palette } from "std-widgets.slint";
++
++import { GraphCanvasAdapter, GraphNodeInfo, WireInfo } from "@root/view_adapters.slint";
++
++// Visual size of a node box on the canvas. Kept as globals so the port-dot
++// positions used for wire endpoints agree with what GraphNode actually draws.
++export global GraphMetrics {
++    out property <length> node-width: 140px;
++    out property <length> node-height: 64px;
++    out property <length> port-radius: 7px;
++}
++
++// A single bezier wire between two world-space points. Drawn with a gentle
++// horizontal S-curve so wires stay readable even when nodes overlap vertically.
++component Wire {
++    in property <length> from-x;
++    in property <length> from-y;
++    in property <length> to-x;
++    in property <length> to-y;
++    in property <bool> highlighted: false;
++
++    // Bounding box for the Path's own coordinate space; Path draws in
++    // logical pixels from (0,0) at top-left of this component.
++    x: Math.min(from-x, to-x) - 2px;
++    y: Math.min(from-y, to-y) - 2px;
++    width: Math.max(from-x, to-x) - Math.min(from-x, to-x) + 4px;
++    height: Math.max(from-y, to-y) - Math.min(from-y, to-y) + 4px;
++
++    Path {
++        width: 100%;
++        height: 100%;
++        viewbox-x: 0;
++        viewbox-y: 0;
++        viewbox-width: parent.width / 1px;
++        viewbox-height: parent.height / 1px;
++
++        stroke: highlighted ? Palette.foreground : Palette.border;
++        stroke-width: highlighted ? 3px : 2px;
++
++        MoveTo {
++            x: (from-x - parent.x) / 1px;
++            y: (from-y - parent.y) / 1px;
++        }
++
++        // Horizontal S-curve: control points pulled out to either side
++        // along x, so the wire always leaves/enters ports horizontally
++        // regardless of relative vertical position.
++        CubicTo {
++            control-1-x: (from-x - parent.x) / 1px + 60;
++            control-1-y: (from-y - parent.y) / 1px;
++            control-2-x: (to-x - parent.x) / 1px - 60;
++            control-2-y: (to-y - parent.y) / 1px;
++            x: (to-x - parent.x) / 1px;
++            y: (to-y - parent.y) / 1px;
++        }
++    }
++}
++
++// One draggable pedal instance box with an input port (left) and output
++// port (right). Dragging the body moves the node; dragging from the
++// output port starts a wire.
++component GraphNode {
++    in property <string> name;
++    in property <int> instance_id;
++    in-out property <length> node-x;
++    in-out property <length> node-y;
++
++    callback moved(length /* x */, length /* y */);
++    callback dragging(length /* x */, length /* y */);
++    callback removed();
++
++    // Emitted continuously while dragging out of the output port, in
++    // canvas-local coordinates, so the parent Canvas can draw a live
++    // preview wire following the pointer.
++    callback output-drag(length /* x */, length /* y */);
++    callback output-drag-ended(length /* x */, length /* y */);
++
++    width: GraphMetrics.node-width;
++    height: GraphMetrics.node-height;
++    x: node-x;
++    y: node-y;
++
++    body := Rectangle {
++        background: Palette.alternate-background;
++        border-radius: 8px;
++        border-width: 1px;
++        border-color: Palette.border;
++
++        Text {
++            text: root.name;
++            horizontal-alignment: center;
++            vertical-alignment: center;
++            width: 100%;
++            height: 100%;
++        }
++
++        body-drag := TouchArea {
++            property <length> press-node-x;
++            property <length> press-node-y;
++
++            pointer-event(event) => {
++                if (event.kind == PointerEventKind.down) {
++                    press-node-x = root.node-x;
++                    press-node-y = root.node-y;
++                }
++                if (event.kind == PointerEventKind.up) {
++                    root.moved(root.node-x, root.node-y);
++                }
++                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
++                    root.removed();
++                }
++            }
++
++            moved => {
++                if (self.pressed) {
++                    root.node-x = press-node-x + (self.mouse-x - self.pressed-x);
++                    root.node-y = press-node-y + (self.mouse-y - self.pressed-y);
++                    root.dragging(root.node-x, root.node-y);
++                }
++            }
++        }
++    }
++
++    // Output port: right-center. Dragging from here starts a new wire.
++    Rectangle {
++        x: parent.width - GraphMetrics.port-radius;
++        y: parent.height / 2 - GraphMetrics.port-radius;
++        width: GraphMetrics.port-radius * 2;
++        height: GraphMetrics.port-radius * 2;
++        border-radius: GraphMetrics.port-radius;
++        background: Palette.foreground;
++        border-width: 1px;
++        border-color: Palette.border;
++
++        output-drag-area := TouchArea {
++            moved => {
++                if (self.pressed) {
++                    root.output-drag(
++                        root.node-x + parent.x + parent.width / 2 + (self.mouse-x - self.pressed-x),
++                        root.node-y + parent.y + parent.height / 2 + (self.mouse-y - self.pressed-y),
++                    );
++                }
++            }
++
++            pointer-event(event) => {
++                if (event.kind == PointerEventKind.up) {
++                    root.output-drag-ended(
++                        root.node-x + parent.x + parent.width / 2 + (self.mouse-x - self.pressed-x),
++                        root.node-y + parent.y + parent.height / 2 + (self.mouse-y - self.pressed-y),
++                    );
++                }
++            }
++        }
++    }
++
++    // Input port: left-center. Purely visual anchor here; hit-testing for
++    // "did a dragged wire land on this port" happens in GraphCanvas since
++    // it already has every node's geometry in one place.
++    Rectangle {
++        x: -GraphMetrics.port-radius;
++        y: parent.height / 2 - GraphMetrics.port-radius;
++        width: GraphMetrics.port-radius * 2;
++        height: GraphMetrics.port-radius * 2;
++        border-radius: GraphMetrics.port-radius;
++        background: Palette.foreground.with-alpha(0.6);
++        border-width: 1px;
++        border-color: Palette.border;
++    }
++}
++
++export component GraphCanvas {
++    in-out property <[GraphNodeInfo]> nodes: GraphCanvasAdapter.nodes;
++    in-out property <[WireInfo]> wires: GraphCanvasAdapter.wires;
++    in-out property <length> pan-x <=> GraphCanvasAdapter.pan_x;
++    in-out property <length> pan-y <=> GraphCanvasAdapter.pan_y;
++
++    // Live wire-drag preview state; -1 means "not dragging a wire".
++    property <int> dragging-from: -1;
++    property <length> drag-x;
++    property <length> drag-y;
++
++    clip: true;
++
++    Rectangle {
++        width: 100%;
++        height: 100%;
++        background: Palette.background;
++    }
++
++    background-area := TouchArea {
++        property <length> press-pan-x;
++        property <length> press-pan-y;
++
++        pointer-event(event) => {
++            if (event.kind == PointerEventKind.down) {
++                press-pan-x = root.pan-x;
++                press-pan-y = root.pan-y;
++            }
++        }
++
++        moved => {
++            if (self.pressed) {
++                root.pan-x = press-pan-x + (self.mouse-x - self.pressed-x);
++                root.pan-y = press-pan-y + (self.mouse-y - self.pressed-y);
++            }
++        }
++    }
++
++    content := Rectangle {
++        x: root.pan-x;
++        y: root.pan-y;
++        width: 100%;
++        height: 100%;
++
++        if root.nodes.length == 0 && root.dragging-from < 0: Text {
++            text: "Drop a pedal here";
++            color: Palette.foreground.with-alpha(0.5);
++            x: (parent.width - self.width) / 2;
++            y: (parent.height - self.height) / 2;
++        }
++
++        // Wires, drawn under the node boxes.
++        for wire in root.wires: Wire {
++            from-x: root.port-x-for(wire.from_id, true);
++            from-y: root.port-y-for(wire.from_id);
++            to-x: root.port-x-for(wire.to_id, false);
++            to-y: root.port-y-for(wire.to_id);
++        }
++
++        // Live preview wire while dragging a new connection out of a port.
++        if root.dragging-from >= 0: Wire {
++            from-x: root.port-x-for(root.dragging-from, true);
++            from-y: root.port-y-for(root.dragging-from);
++            to-x: root.drag-x;
++            to-y: root.drag-y;
++            highlighted: true;
++        }
++
++        for node[index] in root.nodes: GraphNode {
++            name: node.name;
++            instance_id: node.instance_id;
++            node-x: node.x;
++            node-y: node.y;
++
++            // Fired on every pointer move while dragging (not just on
++            // release) so wires attached to this node track it live rather
++            // than jumping into place only once the drag ends.
++            dragging(x, y) => {
++                root.nodes[index].x = x;
++                root.nodes[index].y = y;
++            }
++
++            moved(x, y) => {
++                root.nodes[index].x = x;
++                root.nodes[index].y = y;
++                GraphCanvasAdapter.node_moved(node.instance_id, x, y);
++            }
++
++            removed => {
++                GraphCanvasAdapter.node_removed(node.instance_id);
++            }
++
++            output-drag(x, y) => {
++                root.dragging-from = node.instance_id;
++                root.drag-x = x;
++                root.drag-y = y;
++            }
++
++            output-drag-ended(x, y) => {
++                root.complete-wire-drag(node.instance_id, x, y);
++                root.dragging-from = -1;
++            }
++        }
++    }
++
++    // Looks up the world-space position (i.e. `content`-local, before the
++    // `root.pan-x/y` offset that `content` itself already carries) of a
++    // node's output (right) or input (left) port center, given its
++    // instance_id. Since Wire/the drag preview live inside `content`,
++    // which is already translated by pan-x/pan-y, these must return
++    // coordinates *relative to content*, not the outer canvas.
++    function port-x-for(instance_id: int, output: bool) -> length {
++        for node in root.nodes {
++            if (node.instance_id == instance_id) {
++                return output
++                    ? node.x + GraphMetrics.node-width
++                    : node.x;
++            }
++        }
++        return 0px;
++    }
++
++    function port-y-for(instance_id: int) -> length {
++        for node in root.nodes {
++            if (node.instance_id == instance_id) {
++                return node.y + GraphMetrics.node-height / 2;
++            }
++        }
++        return 0px;
++    }
++
++    // Hit-tests the drop point (arriving in `content`-local coordinates,
++    // same space GraphNode's output-drag reports in) against every other
++    // node's input port, and fires wire_completed for the first match
++    // within range. Cycle rejection etc. is left to whoever handles the
++    // callback on the Rust side.
++    function complete-wire-drag(from_id: int, to-x: length, to-y: length) {
++        for node in root.nodes {
++            if (node.instance_id != from_id) {
++                if (
++                    Math.abs((to-x - node.x) / 1px) < 24
++                    && Math.abs((to-y - node.y - GraphMetrics.node-height / 2) / 1px) < 24
++                ) {
++                    GraphCanvasAdapter.wire_completed(from_id, node.instance_id);
++                    return;
++                }
++            }
++        }
++    }
++}
+diff --git a/gui/common/ui/components/pedals.slint b/gui/common/ui/components/pedals.slint
+index 44f5df1..eafb804 100644
+--- a/gui/common/ui/components/pedals.slint
++++ b/gui/common/ui/components/pedals.slint
+@@ -6,7 +6,16 @@ export component Pedal {
+     in property <string> pedal_name;
+     in property <int> type_id;
+ 
++    // Fires once, on release. `x`/`y` are in this TouchArea's own local
++    // coordinate space (Slint always reports mouse-x/y relative to the
++    // TouchArea itself, not some shared ancestor), so they are NOT
++    // directly usable as a canvas-space drop position on their own.
++    // Whoever wires this up needs to translate using this tile's known
++    // position relative to the canvas (e.g. via a shared ancestor
++    // tracking absolute pointer position, since Slint has no built-in
++    // cross-component drag-and-drop primitive).
+     callback drag_started(int /* type_id */);
++    callback drag_ended(int /* type_id */, length /* x */, length /* y */);
+ 
+     width: 80px;
+     height: 80px;
+@@ -33,6 +42,12 @@ export component Pedal {
+                 root.drag_started(root.type_id);
+             }
+         }
++
++        pointer-event(event) => {
++            if (event.kind == PointerEventKind.up) {
++                root.drag_ended(root.type_id, self.mouse-x, self.mouse-y);
++            }
++        }
+     }
+ }
+ 
+diff --git a/gui/common/ui/fragments/pedals.slint b/gui/common/ui/fragments/pedals.slint
+index d4883a4..b0a64db 100644
+--- a/gui/common/ui/fragments/pedals.slint
++++ b/gui/common/ui/fragments/pedals.slint
+@@ -1,20 +1,15 @@
+ import { Fragment } from "@fragment";
+ 
+-import { Pedal, PedalArea } from "@root/components.slint";
++import { Pedal, GraphCanvas } from "@root/components.slint";
+ 
+-import { PedalsAdapter } from "@root/view_adapters.slint";
++import { PedalsAdapter, GraphCanvasAdapter } from "@root/view_adapters.slint";
+ 
+ export component PedalsFragment inherits Fragment {
+     VerticalLayout {
+-        Rectangle {
++        canvas := GraphCanvas {
+             vertical-stretch: 1;
+         }
+ 
+-        PedalArea {
+-            vertical-stretch: 0;
+-            height: 90px;
+-        }
+-
+         Flickable {
+             vertical-stretch: 0;
+             height: 96px;
+@@ -25,6 +20,25 @@ export component PedalsFragment inherits Fragment {
+                 for pedal[index] in PedalsAdapter.available_pedals : Pedal {
+                     pedal_name: pedal.name;
+                     type_id: pedal.id;
++
++                    // NOTE: Slint gives us no cross-component pointer
++                    // tracking, so we can't know where over the canvas
++                    // this was actually dropped from here. Dropping at a
++                    // fixed spot for now (real drag-and-drop between the
++                    // picker row and the canvas would need a shared
++                    // ancestor tracking absolute pointer position across
++                    // both, which is a bigger change than "just" this).
++                    // Cascades new drops diagonally so they don't stack
++                    // exactly on top of each other; drifts off-canvas after
++                    // many drops since there's no wraparound here, but pan
++                    // covers that and it's an easy follow-up to clamp/wrap.
++                    drag_ended(type_id, x, y) => {
++                        GraphCanvasAdapter.node_dropped(
++                            type_id,
++                            40px + GraphCanvasAdapter.nodes.length * 24px,
++                            40px + GraphCanvasAdapter.nodes.length * 24px,
++                        );
++                    }
+                 }
+             }
+         }
+diff --git a/gui/common/ui/view_adapters.slint b/gui/common/ui/view_adapters.slint
+index 9e2c87b..9068721 100644
+--- a/gui/common/ui/view_adapters.slint
++++ b/gui/common/ui/view_adapters.slint
+@@ -3,3 +3,5 @@ export { MainViewAdapter } from "./view_adapters/main_view.slint";
+ 
+ export { PedalsAdapter, ActivePedalInfo } from "./view_adapters/pedals.slint";
+ 
++export { GraphCanvasAdapter, GraphNodeInfo, WireInfo } from "./view_adapters/graph_canvas.slint";
++
+diff --git a/gui/common/ui/view_adapters/graph_canvas.slint b/gui/common/ui/view_adapters/graph_canvas.slint
+new file mode 100644
+index 0000000..b144e1b
+--- /dev/null
++++ b/gui/common/ui/view_adapters/graph_canvas.slint
+@@ -0,0 +1,38 @@
++export struct GraphNodeInfo {
++    instance_id: int,  // unique per dropped instance, matches dsp::pedal::graph::NodeId
++    type_id: int,      // which pedal type this is, for display/spawning
++    name: string,
++    x: length,         // top-left position in canvas (unpanned/"world") space
++    y: length,
++}
++
++export struct WireInfo {
++    from_id: int,      // instance_id of the upstream (output) node
++    to_id: int,        // instance_id of the downstream (input) node
++}
++
++export global GraphCanvasAdapter {
++    in property <[GraphNodeInfo]> nodes;
++    in property <[WireInfo]> wires;
++
++    // Pan offset of the canvas, in canvas/world coordinates. Kept as
++    // in-out so the canvas component can drive it directly while panning,
++    // without needing a callback round-trip for every frame of the drag.
++    in-out property <length> pan_x;
++    in-out property <length> pan_y;
++
++    // A pedal type was dropped onto the canvas at this world position.
++    callback node_dropped(int /* type_id */, length /* x */, length /* y */);
++
++    // An existing node finished being dragged to a new world position.
++    callback node_moved(int /* instance_id */, length /* x */, length /* y */);
++
++    callback node_removed(int /* instance_id */);
++
++    // A wire was dragged from an output port to an input port and released
++    // over a valid target. Rejecting the connection (e.g. it would create a
++    // cycle) is the caller's job; the canvas doesn't know about that.
++    callback wire_completed(int /* from_id */, int /* to_id */);
++
++    callback wire_removed(int /* from_id */, int /* to_id */);
++}
+-- 
+2.43.0

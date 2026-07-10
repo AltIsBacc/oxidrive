@@ -1,10 +1,32 @@
-import {
-	Fragment
-} from "@fragment";
+import { Fragment } from "@fragment";
+
+import { Pedal, PedalArea } from "@root/components.slint";
+
+import { PedalsAdapter } from "@root/view_adapters.slint";
 
 export component PedalsFragment inherits Fragment {
-	Text {
-		text: "Pedals";
-	}
-}
+    VerticalLayout {
+        Rectangle {
+            vertical-stretch: 1;
+        }
 
+        PedalArea {
+            vertical-stretch: 0;
+            height: 90px;
+        }
+
+        Flickable {
+            vertical-stretch: 0;
+            height: 96px;
+
+            picker_row := HorizontalLayout {
+                spacing: 8px;
+                padding: 8px;
+                for pedal[index] in PedalsAdapter.available_pedals : Pedal {
+                    pedal_name: pedal.name;
+                    type_id: pedal.id;
+                }
+            }
+        }
+    }
+}

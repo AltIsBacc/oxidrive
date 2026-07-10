@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use oxidrive_core::{oxidrive_dsp::pedal::{PedalNodeExt, commands::ChainCommand}, pedals::waveshaper::{WaveshaperNode, WaveshaperParam}};
 
 fn main() -> Result<()> {
@@ -17,6 +17,8 @@ fn main() -> Result<()> {
             ChainCommand::AddPedal(Box::new(waveshaper))
         );
     });
+
+    let _ = oxidrive_core::with_dsp(|d| d.engine.play()).context("failed to play engine")?;
 
     Ok(())
 }

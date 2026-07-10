@@ -1,0 +1,20 @@
+export struct PedalTypeInfo {
+    id: int,           // maps to a pedal type
+    name: string,
+}
+
+export struct ActivePedalInfo {
+    instance_id: int,  // unique per dragged-in instance, not the type id
+    type_id: int,
+    name: string,
+}
+
+export global PedalsAdapter {
+    in property <[PedalTypeInfo]> available_pedals;
+    in-out property <[ActivePedalInfo]> active_chain;
+
+    callback pedal_dropped(int /* type_id */, int /* drop_index */);
+    callback pedal_reordered(int /* from_index */, int /* to_index */);
+    callback pedal_removed(int /* instance_id */);
+}
+

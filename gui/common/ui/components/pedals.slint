@@ -1,0 +1,72 @@
+import { Palette } from "std-widgets.slint";
+
+import { PedalsAdapter, ActivePedalInfo } from "@root/view_adapters.slint";
+
+export component Pedal {
+    in property <string> pedal_name;
+    in property <int> type_id;
+
+    callback drag_started(int /* type_id */);
+
+    width: 80px;
+    height: 80px;
+
+    Rectangle {
+        background: Palette.alternate-background;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: Palette.border;
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.pedal_name;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    TouchArea {
+        moved => {
+            if (self.pressed) {
+                root.drag_started(root.type_id);
+            }
+        }
+    }
+}
+
+export component PedalArea {
+    in-out property <[ActivePedalInfo]> chain: PedalsAdapter.active_chain;
+
+    Rectangle {
+        background: Palette.background;
+        border-width: 1px;
+        border-color: Palette.border;
+        border-radius: 8px;
+
+        if chain.length == 0 : Text {
+            text: "Drag a pedal here";
+            color: Palette.foreground.with-alpha(0.5);
+        }
+
+        HorizontalLayout {
+            padding: 8px;
+            spacing: 8px;
+            for pedal[index] in chain : Rectangle {
+                background: Palette.alternate-background;
+                border-radius: 6px;
+                width: 70px;
+
+                VerticalLayout {
+                    alignment: center;
+                    Text { text: pedal.name; horizontal-alignment: center; }
+                }
+
+                TouchArea {
+                    clicked => { PedalsAdapter.pedal_removed(pedal.instance_id); }
+                }
+            }
+        }
+    }
+}
