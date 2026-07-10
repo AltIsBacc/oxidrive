@@ -1,18 +1,13 @@
 import { Fragment } from "@fragment";
 
-import { Pedal, PedalArea } from "@root/components.slint";
+import { Pedal, GraphCanvas } from "@root/components.slint";
 
-import { PedalsAdapter } from "@root/view_adapters.slint";
+import { PedalsAdapter, GraphCanvasAdapter } from "@root/view_adapters.slint";
 
 export component PedalsFragment inherits Fragment {
     VerticalLayout {
-        Rectangle {
+        canvas := GraphCanvas {
             vertical-stretch: 1;
-        }
-
-        PedalArea {
-            vertical-stretch: 0;
-            height: 90px;
         }
 
         Flickable {
@@ -25,6 +20,25 @@ export component PedalsFragment inherits Fragment {
                 for pedal[index] in PedalsAdapter.available_pedals : Pedal {
                     pedal_name: pedal.name;
                     type_id: pedal.id;
+
+                    // NOTE: Slint gives us no cross-component pointer
+                    // tracking, so we can't know where over the canvas
+                    // this was actually dropped from here. Dropping at a
+                    // fixed spot for now (real drag-and-drop between the
+                    // picker row and the canvas would need a shared
+                    // ancestor tracking absolute pointer position across
+                    // both, which is a bigger change than "just" this).
+                    // Cascades new drops diagonally so they don't stack
+                    // exactly on top of each other; drifts off-canvas after
+                    // many drops since there's no wraparound here, but pan
+                    // covers that and it's an easy follow-up to clamp/wrap.
+                    drag_ended(type_id, x, y) => {
+                        GraphCanvasAdapter.node_dropped(
+                            type_id,
+                            40px + GraphCanvasAdapter.nodes.length * 24px,
+                            40px + GraphCanvasAdapter.nodes.length * 24px,
+                        );
+                    }
                 }
             }
         }

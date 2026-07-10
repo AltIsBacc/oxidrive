@@ -6,7 +6,16 @@ export component Pedal {
     in property <string> pedal_name;
     in property <int> type_id;
 
+    // Fires once, on release. `x`/`y` are in this TouchArea's own local
+    // coordinate space (Slint always reports mouse-x/y relative to the
+    // TouchArea itself, not some shared ancestor), so they are NOT
+    // directly usable as a canvas-space drop position on their own.
+    // Whoever wires this up needs to translate using this tile's known
+    // position relative to the canvas (e.g. via a shared ancestor
+    // tracking absolute pointer position, since Slint has no built-in
+    // cross-component drag-and-drop primitive).
     callback drag_started(int /* type_id */);
+    callback drag_ended(int /* type_id */, length /* x */, length /* y */);
 
     width: 80px;
     height: 80px;
@@ -31,6 +40,12 @@ export component Pedal {
         moved => {
             if (self.pressed) {
                 root.drag_started(root.type_id);
+            }
+        }
+
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.up) {
+                root.drag_ended(root.type_id, self.mouse-x, self.mouse-y);
             }
         }
     }
